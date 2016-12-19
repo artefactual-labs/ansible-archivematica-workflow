@@ -1,0 +1,9 @@
+description "Archivematica workflow"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+setuid {{ am_workflow_user }}
+setgid {{ am_workflow_group }}
+
+exec {{ am_workflow_bin_dir }}/archivematica-workflow -debug.addr="{{ am_workflow_debug_addr }}" -grpc.addr="{{ am_workflow_grpc_addr }}" -http.addr="{{ am_workflow_http_addr }}"

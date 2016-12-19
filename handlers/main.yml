@@ -1,0 +1,6 @@
+---
+
+- name: "Restart archivematica-workflow"
+  service:
+    name: "archivematica-workflow"
+    state: "restarted"

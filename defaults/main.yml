@@ -1,0 +1,7 @@
+---
+am_workflow_version: "v0.0.1-alpha.2"
+am_workflow_user: "archivematica-workflow"
+am_workflow_group: "archivematica-workflow"
+am_workflow_debug_addr: ":40050"
+am_workflow_grpc_addr: ":50050"
+am_workflow_http_addr: ":60050"

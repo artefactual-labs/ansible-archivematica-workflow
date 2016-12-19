@@ -1,0 +1,17 @@
+---
+
+- name: "Stat binary"
+  stat:
+    path: "{{ am_workflow_bin_dir }}/archivematica-workflow"
+  register: "exists"
+
+- name: "Check current version"    # Available since v0.0.1-alpha.2
+  command: "archivematica-workflow -version | cut -d ' ' -f2 | cut -c 2-"
+  check_mode: "no"
+  ignore_errors: "yes"
+  register: "version"
+  when: "exists.stat.exists == True"
+
+- name: "Install archivematica-workflow"
+  include: "install.yml"
+  when: "{{ exists.stat.exists == False or (version.rc == 0 and version|version_compare(am_workflow_version, '<')) }}"

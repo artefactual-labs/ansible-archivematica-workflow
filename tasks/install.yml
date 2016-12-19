@@ -1,0 +1,55 @@
+---
+
+- name: "Ensure group is created"
+  group:
+    name: "{{ am_workflow_group }}"
+    system: "yes"
+    state: "present"
+  notify:
+    - "Restart archivematica-workflow"
+
+- name: "Ensure user is created"
+  user:
+    name: "{{ am_workflow_user }}"
+    comment: "Archivematica workflow user"
+    system: "yes"
+    createhome: "no"
+    group: "{{ am_workflow_group }}"
+    state: "present"
+  notify:
+    - "Restart archivematica-workflow"
+
+- name: "Download binary"
+  get_url:
+    url: "https://github.com/artefactual-labs/archivematica-workflow/releases/download/{{ am_workflow_version }}/archivematica-workflow-{{ am_workflow_version }}-linux-amd64.bz2"
+    dest: "/tmp/archivematica-workflow.bz2"
+
+- name: "Install binary"
+  shell: "bunzip2 --decompress /tmp/archivematica-workflow.bz2 && chmod 755 /tmp/archivematica-workflow && mv /tmp/archivematica-workflow {{ am_workflow_bin_dir }}"
+  notify:
+    - "Restart archivematica-workflow"
+
+- name: "Copy upstart service file"
+  template:
+    src: "init/upstart.j2"
+    dest: "{{ am_workflow_upstart_script }}"
+    mode: "0644"
+    force: "yes"
+  when: "ansible_distribution == 'Ubuntu' and ansible_distribution_version|version_compare('14.10', '<=')"
+  notify:
+    - "Restart archivematica-workflow"
+
+- name: "Copy systemd service file"
+  template:
+    src: "init/systemd.j2"
+    dest: "{{ am_workflow_systemd_script }}"
+    mode: "0644"
+    force: "yes"
+  when: "ansible_distribution == 'Ubuntu' and ansible_distribution_version|version_compare('15.04', '>=')"
+  notify:
+    - "Restart archivematica-workflow"
+
+- name: "Enable service"
+  service:
+    name: "archivematica-workflow"
+    enabled: "yes"
