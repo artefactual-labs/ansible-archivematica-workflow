@@ -1,4 +1,1 @@
 ---
-am_workflow_bin_dir: "/usr/local/bin"
-am_workflow_systemd_script: "/usr/lib/systemd/system/archivematica-workflow.service"
-am_workflow_upstart_script: "/etc/init/archivematica-workflow.conf"

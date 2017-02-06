@@ -4,3 +4,8 @@
   service:
     name: "archivematica-workflow"
     state: "restarted"
+
+- name: "Reload systemd service file"
+  command: "systemctl daemon-reload"
+  notify: "Restart archivematica-workflow"
+  ignore_errors: "yes"

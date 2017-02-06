@@ -1,0 +1,19 @@
+[Unit]
+Description=Archivematica workflow
+Documentation=https://www.archivematica.org
+After=network-online.target
+Wants=network-online.target systemd-networkd-wait-online.service
+
+[Service]
+Restart=on-failure
+StartLimitInterval=86400
+StartLimitBurst=5
+User={{ am_workflow_user }}
+Group={{ am_workflow_group }}
+ExecStart=/usr/local/bin/archivematica-workflow -debug.addr={{ am_workflow_debug_addr }} -grpc.addr={{ am_workflow_grpc_addr }} -http.addr={{ am_workflow_http_addr }}
+ExecReload=/bin/kill -USR1 $MAINPID
+ProtectHome=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

@@ -1,17 +1,103 @@
 ---
 
-- name: "Stat binary"
+- name: "Ensure group is created"
+  group:
+    name: "{{ am_workflow_group }}"
+    system: "yes"
+    state: "present"
+
+- name: "Ensure user is created"
+  user:
+    name: "{{ am_workflow_user }}"
+    comment: "Archivematica workflow user"
+    system: "yes"
+    createhome: "yes"
+    group: "{{ am_workflow_group }}"
+    home: "{{ am_workflow_home }}"
+    state: "present"
+
+- name: "Get link to latest release (linux-amd64)"
+  shell: |
+    curl -s https://api.github.com/repos/artefactual-labs/archivematica-workflow/releases/latest \
+    | grep -e "browser_download_url.*archivematica-workflow.*linux-amd64" \
+    | grep -v cli \
+    | cut -d '"' -f 4
+  register: "am_workflow_url"
+
+- name: "Get all archivematica-workflow releases"
+  get_url:
+    url: "https://api.github.com/repos/artefactual-labs/archivematica-workflow/git/refs/tags"
+    dest: "{{ am_workflow_home }}/releases.txt"
+    force: "yes"
+  when: "am_workflow_update|bool"
+  register: "am_workflow_releases_cache"
+
+- name: "Download archivematica-workflow"
+  get_url:
+    url: "{{ am_workflow_url.stdout }}"
+    dest: "{{ am_workflow_home }}/archivematica-workflow.tar.bz2"
+    force: "yes"
+  when: "am_workflow_releases_cache.changed"
+  register: "am_workflow_binary_cache"
+
+- name: "Download archivematica-workflow"
+  get_url:
+    url: "{{ am_workflow_url.stdout }}"
+    dest: "{{ am_workflow_home }}/archivematica-workflow.tar.bz2"
+
+- name: "Extract archivematica-workflow"
+  unarchive:
+    src: "{{ am_workflow_home }}/archivematica-workflow.tar.bz2"
+    dest: "{{ am_workflow_home }}"
+    copy: "no"
+    owner: "{{ am_workflow_user }}"
+    group: "{{ am_workflow_group }}"
+  when: "am_workflow_binary_cache.changed"
+
+- name: "Extract archivematica-workflow"
+  unarchive:
+    src: "{{ am_workflow_home }}/archivematica-workflow.tar.bz2"
+    dest: "{{ am_workflow_home }}"
+    creates: "{{ am_workflow_home }}/archivematica-workflow"
+    copy: "no"
+    owner: "{{ am_workflow_user }}"
+    group: "{{ am_workflow_group }}"
+
+- name: "Copy archivematica-workflow binary"
+  copy:
+    src: "{{ am_workflow_home }}/archivematica-workflow"
+    dest: "/usr/local/bin/"
+    mode: "0755"
+    remote_src: "yes"
+  notify: "Restart archivematica-workflow"
+
+- name: "Check if systemd is running"
   stat:
-    path: "{{ am_workflow_bin_dir }}/archivematica-workflow"
-  register: "exists"
+    path: "/run/systemd/system"
+  register: "systemd"
 
-- name: "Check current version"    # Available since v0.0.1-alpha.2
-  command: "archivematica-workflow -version | cut -d ' ' -f2 | cut -c 2-"
-  check_mode: "no"
-  ignore_errors: "yes"
-  register: "version"
-  when: "exists.stat.exists == True"
+- name: "Upstart service"
+  template:
+    src: "{{ item }}"
+    dest: "/etc/init/archivematica-workflow.conf"
+    mode: "0644"
+  when: "not systemd.stat.exists"
+  with_first_found:
+    - "init/upstart/archivematica-workflow.conf.{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version }}"
+    - "init/upstart/archivematica-workflow.conf.{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}"
+    - "init/upstart/archivematica-workflow.conf"
+  notify: "Restart archivematica-workflow"
 
-- name: "Install archivematica-workflow"
-  include: "install.yml"
-  when: "{{ exists.stat.exists == False or (version.rc == 0 and version|version_compare(am_workflow_version, '<')) }}"
+- name: "Systemd service"
+  template:
+    src: "init/systemd/archivematica-workflow.service"
+    dest: "/etc/systemd/system/archivematica-worklfow.service"
+    mode: "0755"
+  when: "systemd.stat.exists"
+  notify: "Reload systemd service file"
+
+- name: "Start archivematica-workflow service"
+  service:
+    name: "archivematica-workflow"
+    state: "started"
+    enabled: "yes"
